@@ -24,7 +24,7 @@ pub fn users(users: Vec<User>) -> String {
                         cx.props.users.iter().map(|user| rsx!(
                             tr {
                                 td {strong {"{user.id}"}}
-                                td {"user.email"}
+                                td {"{user.email}"}
                             }
                         ))
                     }

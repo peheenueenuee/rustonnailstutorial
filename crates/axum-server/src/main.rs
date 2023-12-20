@@ -2,7 +2,16 @@ mod config;
 mod errors;
 
 use crate::errors::CustomError;
-use axum::{extract::Extension, response::Html, routing::get, Router};
+use axum::{
+    extract::Extension,
+    response::Html,
+    response::Redirect,
+    routing::get,
+    routing::post,
+    Form,
+    Router,
+};
+use serde::Deserialize;
 use std::net::SocketAddr;
 use db::User;
 
@@ -15,6 +24,7 @@ async fn main() {
     // build our application with a route
     let app = Router::new()
         .route("/", get(users))
+        .route("/sign_up", post(accept_form))
         .layer(Extension(config))
         .layer(Extension(pool.clone()));
 
@@ -38,4 +48,26 @@ async fn users(Extension(pool): Extension<db::Pool>) -> Result<Html<String>, Cus
     Ok(Html(ui_components::users::users(
         users,
     )))
+}
+
+#[derive(Deserialize)]
+struct SignUp {
+    email: String,
+}
+
+async fn accept_form(
+    Extension(pool): Extension<db::Pool>,
+    Form(form): Form<SignUp>,
+) -> Result<Redirect, CustomError> {
+    let client = pool.get().await?;
+
+    let email = form.email;
+    // TODO - accept a password and hash it
+    let hashed_password = String::from("aaaa");
+    let _ = db::queries::users::create_user()
+        .bind(&client, &email.as_str(), &hashed_password.as_str())
+        .await?;
+
+    // 303 redirect to users list
+    Ok(Redirect::to("/"))
 }
