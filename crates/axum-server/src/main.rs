@@ -4,7 +4,9 @@ mod errors;
 use crate::errors::CustomError;
 use axum::{
     extract::Extension,
-    response::Html,
+    http::StatusCode,
+    response::{Html, Response},
+    response::IntoResponse,
     response::Redirect,
     routing::get,
     routing::post,
@@ -13,7 +15,7 @@ use axum::{
 };
 use serde::Deserialize;
 use std::net::SocketAddr;
-use db::User;
+use validator::Validate;
 
 #[tokio::main]
 async fn main() {
@@ -50,15 +52,20 @@ async fn users(Extension(pool): Extension<db::Pool>) -> Result<Html<String>, Cus
     )))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 struct SignUp {
+    #[validate(email)]
     email: String,
 }
 
 async fn accept_form(
     Extension(pool): Extension<db::Pool>,
     Form(form): Form<SignUp>,
-) -> Result<Redirect, CustomError> {
+) -> Result<Response, CustomError> {
+    if form.validate().is_err() {
+        return Ok((StatusCode::BAD_REQUEST, "Bad request").into_response());
+    }
+
     let client = pool.get().await?;
 
     let email = form.email;
@@ -69,5 +76,5 @@ async fn accept_form(
         .await?;
 
     // 303 redirect to users list
-    Ok(Redirect::to("/"))
+    Ok(Redirect::to("/").into_response())
 }
